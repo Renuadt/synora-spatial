@@ -34,16 +34,28 @@ function WorkerCard({ worker }: { worker: Worker }) {
           : 'border-white/10 bg-white/[0.02]'
       }`}
     >
-      <div className="flex w-full items-center justify-between">
-        <span className="font-mono text-xs font-medium tracking-wide text-neutral-200">
-          {worker.id}
-        </span>
+      <div className="flex w-full items-start justify-between">
+        <div className="flex flex-col">
+          <span className="text-sm font-semibold tracking-tight text-neutral-100">
+            {worker.name}
+          </span>
+          <span className="font-mono text-[0.58rem] uppercase tracking-[0.16em] text-neutral-500">
+            {worker.region}
+          </span>
+        </div>
         <span
-          className={`font-mono text-[0.6rem] uppercase tracking-[0.16em] ${
+          className={`inline-flex items-center gap-1.5 font-mono text-[0.58rem] uppercase tracking-[0.16em] ${
             offline ? 'text-rose-400' : 'text-emerald-300'
           }`}
         >
-          {offline ? '\u{1F480} Offline' : '\u{1F7E2} Online'}
+          <span
+            className={`h-1.5 w-1.5 rounded-full ${
+              offline
+                ? 'bg-rose-400 shadow-[0_0_8px_#f43f5e]'
+                : 'bg-emerald-400 shadow-[0_0_8px_#34d399]'
+            }`}
+          />
+          {offline ? 'Offline' : 'Online'}
         </span>
       </div>
 
@@ -83,8 +95,17 @@ function WorkerCard({ worker }: { worker: Worker }) {
         </div>
       </div>
 
-      <div className="mt-2 font-mono text-[0.6rem] uppercase tracking-[0.16em] text-neutral-500">
-        {worker.region}
+      <div className="mt-2 grid w-full grid-cols-2 gap-2 border-t border-white/5 pt-2 font-mono text-[0.58rem] uppercase tracking-[0.12em] text-neutral-500">
+        <div className="flex flex-col">
+          <span className="text-neutral-300">{worker.tasksHandled.toLocaleString('en-US')}</span>
+          <span>handled</span>
+        </div>
+        <div className="flex flex-col text-right">
+          <span className={offline ? 'text-rose-400' : 'text-neutral-300'}>
+            {offline ? 'down' : `${worker.uptimeHours}h`}
+          </span>
+          <span>uptime</span>
+        </div>
       </div>
     </div>
   )
@@ -94,9 +115,9 @@ export function WorkerGrid({ workers, delay = 0 }: WorkerGridProps) {
   return (
     <GlassPanel delay={delay} className="flex h-full flex-col p-5">
       <PanelHeading
-        label="Node Allocation"
+        label="Node Fleet"
         accent="#a78bfa"
-        hint={<span className="font-mono">3 nodes · load balancing</span>}
+        hint={<span className="font-mono">{workers.length} regions · live load</span>}
       />
       <div className="mt-4 grid flex-1 grid-cols-1 gap-3 sm:grid-cols-3">
         {workers.map((worker, i) => (

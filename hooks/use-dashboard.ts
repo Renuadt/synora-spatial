@@ -7,12 +7,18 @@ import type {
   VelocityPoint,
   Worker,
 } from '@/lib/observability/types'
+import { WORKER_LABELS } from '@/lib/observability/types'
 
 const DEAD_TASK_ID = 'TSK-092'
 
 function stamp(offsetSec = 0): string {
   const d = new Date(Date.now() + offsetSec * 1000)
   return d.toTimeString().slice(0, 8) + '.' + String(d.getMilliseconds()).padStart(3, '0')
+}
+
+/** Uppercase log source tag for a node, e.g. "PORTLAND". */
+function tag(id: Worker['id']): string {
+  return WORKER_LABELS[id].toUpperCase()
 }
 
 let logSeq = 0
@@ -37,27 +43,27 @@ function makeLog(
 /* ── Baseline (steady crashed) state — shown when demo mode is OFF ── */
 
 const BASELINE_WORKERS: Worker[] = [
-  { id: 'W-ALPHA', status: 'ONLINE', load: 45, region: 'us-east-1' },
-  { id: 'W-BETA', status: 'OFFLINE', load: 100, region: 'us-west-2' },
-  { id: 'W-GAMMA', status: 'ONLINE', load: 12, region: 'eu-central-1' },
+  { id: 'ashburn', name: 'Ashburn', status: 'ONLINE', load: 45, region: 'us-east-1', tasksHandled: 8421, uptimeHours: 312 },
+  { id: 'portland', name: 'Portland', status: 'OFFLINE', load: 100, region: 'us-west-2', tasksHandled: 5310, uptimeHours: 0 },
+  { id: 'frankfurt', name: 'Frankfurt', status: 'ONLINE', load: 12, region: 'eu-central-1', tasksHandled: 2765, uptimeHours: 128 },
 ]
 
 const BASELINE_TASKS: Task[] = [
-  { id: 'TSK-088', name: 'index.rebuild', status: 'COMPLETED', node: 'W-ALPHA', latencyMs: 412, ts: '14:21:19.004' },
-  { id: 'TSK-089', name: 'billing.reconcile', status: 'COMPLETED', node: 'W-GAMMA', latencyMs: 890, ts: '14:21:25.180' },
-  { id: 'TSK-090', name: 'media.transcode', status: 'RUNNING', node: 'W-ALPHA', latencyMs: 1240, ts: '14:21:37.402' },
-  { id: 'TSK-091', name: 'geo.reindex', status: 'RETRYING', node: 'W-GAMMA', latencyMs: 2010, ts: '14:21:43.900' },
-  { id: 'TSK-092', name: 'ambulance.dispatch', status: 'DEAD_LETTER', node: 'W-BETA', latencyMs: 30000, ts: '14:21:49.061' },
-  { id: 'TSK-093', name: 'notify.push', status: 'QUEUED', node: 'W-ALPHA', latencyMs: 0, ts: '14:21:55.220' },
+  { id: 'TSK-088', name: 'index.rebuild', status: 'COMPLETED', node: 'ashburn', latencyMs: 412, ts: '14:21:19.004' },
+  { id: 'TSK-089', name: 'billing.reconcile', status: 'COMPLETED', node: 'frankfurt', latencyMs: 890, ts: '14:21:25.180' },
+  { id: 'TSK-090', name: 'media.transcode', status: 'RUNNING', node: 'ashburn', latencyMs: 1240, ts: '14:21:37.402' },
+  { id: 'TSK-091', name: 'geo.reindex', status: 'RETRYING', node: 'frankfurt', latencyMs: 2010, ts: '14:21:43.900' },
+  { id: 'TSK-092', name: 'ambulance.dispatch', status: 'DEAD_LETTER', node: 'portland', latencyMs: 30000, ts: '14:21:49.061' },
+  { id: 'TSK-093', name: 'notify.push', status: 'QUEUED', node: 'ashburn', latencyMs: 0, ts: '14:21:55.220' },
 ]
 
 const BASELINE_EVENTS: LogEvent[] = [
   makeLog('SCHED', 'scheduler tick — lease table synced', 'info', false, '14:21:31.000'),
-  makeLog('W-ALPHA', 'accepted lease TSK-090 (media.transcode)', 'info', false, '14:21:37.402'),
-  makeLog('W-GAMMA', 'retry scheduled for TSK-091 attempt 2/5', 'warn', false, '14:21:43.900'),
-  makeLog('W-BETA', 'HEARTBEAT LOST — last ack 30s ago', 'error', true, '14:21:47.010'),
-  makeLog('W-BETA', 'MARKED DEAD — draining leases', 'error', true, '14:21:48.220'),
-  makeLog('SCHED', `${DEAD_TASK_ID} LEASE EXPIRED on W-BETA → DEAD LETTER`, 'error', true, '14:21:49.061'),
+  makeLog('ASHBURN', 'accepted lease TSK-090 (media.transcode)', 'info', false, '14:21:37.402'),
+  makeLog('FRANKFURT', 'retry scheduled for TSK-091 attempt 2/5', 'warn', false, '14:21:43.900'),
+  makeLog('PORTLAND', 'HEARTBEAT LOST — last ack 30s ago', 'error', true, '14:21:47.010'),
+  makeLog('PORTLAND', 'MARKED DEAD — draining leases', 'error', true, '14:21:48.220'),
+  makeLog('SCHED', `${DEAD_TASK_ID} LEASE EXPIRED on Portland → DEAD LETTER`, 'error', true, '14:21:49.061'),
 ]
 
 const TASK_NAMES = [
@@ -91,6 +97,7 @@ export function useDashboard() {
   const [events, setEvents] = useState<LogEvent[]>(BASELINE_EVENTS)
   const [velocity, setVelocity] = useState<VelocityPoint[]>(seedVelocity)
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
+  const [processed, setProcessed] = useState(20418)
 
   const taskCounter = useRef(93)
   const velocityTick = useRef(40)
@@ -125,7 +132,7 @@ export function useDashboard() {
 
   const addRandomTask = useCallback(() => {
     taskCounter.current += 1
-    const node: Worker['id'] = Math.random() > 0.5 ? 'W-ALPHA' : 'W-GAMMA'
+    const node: Worker['id'] = Math.random() > 0.5 ? 'ashburn' : 'frankfurt'
     const name = TASK_NAMES[Math.floor(Math.random() * TASK_NAMES.length)]
     const id = `TSK-${taskCounter.current.toString().padStart(3, '0')}`
     const task: Task = {
@@ -137,7 +144,7 @@ export function useDashboard() {
       ts: stamp(),
     }
     setTasks((prev) => [...prev.slice(-40), task])
-    pushEvent(makeLog(node, `enqueued ${id} (${name})`, 'info'))
+    pushEvent(makeLog(tag(node), `enqueued ${id} (${name})`, 'info'))
 
     // Let it progress to RUNNING then COMPLETE for a lively stream.
     timers.current.push(
@@ -147,11 +154,22 @@ export function useDashboard() {
             t.id === id ? { ...t, status: 'RUNNING', latencyMs: 200 + Math.round(Math.random() * 900) } : t,
           ),
         )
+        setWorkers((prev) =>
+          prev.map((w) => (w.id === node ? { ...w, load: Math.min(96, w.load + 6) } : w)),
+        )
       }, 1600),
     )
     timers.current.push(
       setTimeout(() => {
         setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status: 'COMPLETED' } : t)))
+        setWorkers((prev) =>
+          prev.map((w) =>
+            w.id === node
+              ? { ...w, load: Math.max(10, w.load - 6), tasksHandled: w.tasksHandled + 1 }
+              : w,
+          ),
+        )
+        setProcessed((n) => n + 1)
       }, 4200),
     )
   }, [pushEvent])
@@ -161,20 +179,20 @@ export function useDashboard() {
 
     // Reset to a healthy, pre-crash world.
     setWorkers([
-      { id: 'W-ALPHA', status: 'ONLINE', load: 38, region: 'us-east-1' },
-      { id: 'W-BETA', status: 'ONLINE', load: 64, region: 'us-west-2' },
-      { id: 'W-GAMMA', status: 'ONLINE', load: 12, region: 'eu-central-1' },
+      { id: 'ashburn', name: 'Ashburn', status: 'ONLINE', load: 38, region: 'us-east-1', tasksHandled: 8421, uptimeHours: 312 },
+      { id: 'portland', name: 'Portland', status: 'ONLINE', load: 64, region: 'us-west-2', tasksHandled: 5310, uptimeHours: 47 },
+      { id: 'frankfurt', name: 'Frankfurt', status: 'ONLINE', load: 12, region: 'eu-central-1', tasksHandled: 2765, uptimeHours: 128 },
     ])
     taskCounter.current = 91
     setTasks([
-      { id: 'TSK-090', name: 'media.transcode', status: 'RUNNING', node: 'W-ALPHA', latencyMs: 640, ts: stamp() },
-      { id: 'TSK-091', name: 'geo.reindex', status: 'RUNNING', node: 'W-GAMMA', latencyMs: 980, ts: stamp() },
-      { id: 'TSK-092', name: 'ambulance.dispatch', status: 'RUNNING', node: 'W-BETA', latencyMs: 1200, ts: stamp() },
+      { id: 'TSK-090', name: 'media.transcode', status: 'RUNNING', node: 'ashburn', latencyMs: 640, ts: stamp() },
+      { id: 'TSK-091', name: 'geo.reindex', status: 'RUNNING', node: 'frankfurt', latencyMs: 980, ts: stamp() },
+      { id: 'TSK-092', name: 'ambulance.dispatch', status: 'RUNNING', node: 'portland', latencyMs: 1200, ts: stamp() },
     ])
     setEvents([
       makeLog('SCHED', 'DEMO scenario armed — "silent crash" replay', 'info'),
-      makeLog('W-BETA', 'accepted lease TSK-092 (ambulance.dispatch)', 'info'),
-      makeLog('W-BETA', 'heartbeat OK — load 64%', 'info'),
+      makeLog('PORTLAND', 'accepted lease TSK-092 (ambulance.dispatch)', 'info'),
+      makeLog('PORTLAND', 'heartbeat OK — load 64%', 'info'),
     ])
     setSelectedTaskId(null)
 
@@ -182,16 +200,16 @@ export function useDashboard() {
     intervals.current.push(setInterval(addRandomTask, 5000))
     timers.current.push(setTimeout(addRandomTask, 900))
 
-    // Gentle load creep on W-BETA before the panic.
+    // Gentle load creep on Portland before the panic.
     timers.current.push(
       setTimeout(() => {
-        setWorkers((prev) => prev.map((w) => (w.id === 'W-BETA' ? { ...w, load: 88 } : w)))
-        pushEvent(makeLog('W-BETA', 'load climbing → 88% (GC pressure)', 'warn'))
+        setWorkers((prev) => prev.map((w) => (w.id === 'portland' ? { ...w, load: 88 } : w)))
+        pushEvent(makeLog('PORTLAND', 'load climbing → 88% (GC pressure)', 'warn'))
       }, 9000),
     )
     timers.current.push(
       setTimeout(() => {
-        pushEvent(makeLog('W-BETA', 'HEARTBEAT LATE — 12s since last ack', 'warn', false))
+        pushEvent(makeLog('PORTLAND', 'HEARTBEAT LATE — 12s since last ack', 'warn', false))
       }, 15000),
     )
 
@@ -199,7 +217,7 @@ export function useDashboard() {
     timers.current.push(
       setTimeout(() => {
         setWorkers((prev) =>
-          prev.map((w) => (w.id === 'W-BETA' ? { ...w, status: 'OFFLINE', load: 100 } : w)),
+          prev.map((w) => (w.id === 'portland' ? { ...w, status: 'OFFLINE', load: 100, uptimeHours: 0 } : w)),
         )
         setTasks((prev) =>
           prev.map((t) =>
@@ -208,8 +226,8 @@ export function useDashboard() {
               : t,
           ),
         )
-        pushEvent(makeLog('W-BETA', '[ERR] W-BETA KERNEL PANIC — FATAL_OOM', 'error', true))
-        pushEvent(makeLog('W-BETA', 'HEARTBEAT LOST — marking node dead', 'error', true))
+        pushEvent(makeLog('PORTLAND', '[ERR] Portland KERNEL PANIC — FATAL_OOM', 'error', true))
+        pushEvent(makeLog('PORTLAND', 'HEARTBEAT LOST — marking node dead', 'error', true))
         pushEvent(makeLog('SCHED', `${DEAD_TASK_ID} LEASE EXPIRED → DEAD LETTER`, 'error', true))
         setSelectedTaskId(DEAD_TASK_ID)
       }, 20000),
@@ -245,6 +263,25 @@ export function useDashboard() {
     [tasks, selectedTaskId],
   )
 
+  const metrics = useMemo(() => {
+    const online = workers.filter((w) => w.status === 'ONLINE').length
+    const inFlight = tasks.filter((t) => t.status === 'RUNNING' || t.status === 'RETRYING').length
+    const deadLetters = tasks.filter((t) => t.status === 'DEAD_LETTER').length
+    const completed = tasks.filter((t) => t.status === 'COMPLETED').length
+    const denom = completed + deadLetters
+    const successRate = denom ? Math.round((completed / denom) * 1000) / 10 : 100
+    const currentTps = velocity.length ? velocity[velocity.length - 1].tps : 0
+    return {
+      processed,
+      online,
+      total: workers.length,
+      inFlight,
+      deadLetters,
+      successRate,
+      currentTps,
+    }
+  }, [workers, tasks, velocity, processed])
+
   return {
     isDemoMode,
     toggleDemo,
@@ -252,6 +289,7 @@ export function useDashboard() {
     tasks,
     events,
     velocity,
+    metrics,
     selectedTask,
     selectTask: setSelectedTaskId,
     clearSelection: () => setSelectedTaskId(null),

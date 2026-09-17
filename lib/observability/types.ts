@@ -5,9 +5,16 @@ export type TaskStatus =
   | 'RETRYING'
   | 'DEAD_LETTER'
 
-export type WorkerId = 'W-ALPHA' | 'W-BETA' | 'W-GAMMA'
+export type WorkerId = 'ashburn' | 'portland' | 'frankfurt'
 
 export type WorkerStatus = 'ONLINE' | 'OFFLINE'
+
+/** Human-readable label for each node, used in logs, cards, and the inspector. */
+export const WORKER_LABELS: Record<WorkerId, string> = {
+  ashburn: 'Ashburn',
+  portland: 'Portland',
+  frankfurt: 'Frankfurt',
+}
 
 export interface Task {
   id: string
@@ -20,9 +27,12 @@ export interface Task {
 
 export interface Worker {
   id: WorkerId
+  name: string
   status: WorkerStatus
   load: number
   region: string
+  tasksHandled: number
+  uptimeHours: number
 }
 
 export type LogLevel = 'info' | 'warn' | 'error'

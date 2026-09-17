@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { useDashboard } from '@/hooks/use-dashboard'
 import { EventFeed } from '@/components/observability/event-feed'
+import { MetricStrip } from '@/components/observability/metric-strip'
 import { QueueVelocity } from '@/components/observability/queue-velocity'
 import { TaskInspector } from '@/components/observability/task-inspector'
 import { TaskStream } from '@/components/observability/task-stream'
@@ -17,6 +18,7 @@ export default function Page() {
     tasks,
     events,
     velocity,
+    metrics,
     selectedTask,
     selectTask,
     clearSelection,
@@ -49,7 +51,11 @@ export default function Page() {
       <div className="relative mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
         <TopNav isDemoMode={isDemoMode} onToggleDemo={toggleDemo} />
 
-        <div className="mt-4 flex flex-col gap-4 lg:mt-6 lg:flex-row">
+        <div className="mt-4 lg:mt-6">
+          <MetricStrip metrics={metrics} delay={0.08} />
+        </div>
+
+        <div className="mt-4 flex flex-col gap-4 lg:flex-row">
           <div className="flex flex-1 flex-col gap-4">
             <div className="h-72 shrink-0">
               <QueueVelocity data={velocity} delay={0.1} />

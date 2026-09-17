@@ -2,20 +2,23 @@
 
 import { AnimatePresence, motion } from 'framer-motion'
 import type { Task } from '@/lib/observability/types'
+import { WORKER_LABELS } from '@/lib/observability/types'
 
 interface TaskInspectorProps {
   task: Task | null
   onClose: () => void
 }
 
-const TRACE_LINES = [
-  { ts: '00:00.000', msg: 'W-BETA accepted lease · ambulance.dispatch', tone: 'text-neutral-400' },
-  { ts: '00:12.400', msg: 'W-BETA HEARTBEAT LATE (12s since last ack)', tone: 'text-amber-300' },
-  { ts: '00:20.010', msg: 'W-BETA KERNEL PANIC → FATAL_OOM', tone: 'text-rose-400 font-bold' },
-  { ts: '00:20.045', msg: 'W-BETA HEARTBEAT LOST', tone: 'text-rose-400 font-bold' },
-  { ts: '00:20.220', msg: 'W-BETA MARKED DEAD — draining leases', tone: 'text-rose-300' },
-  { ts: '00:30.000', msg: 'LEASE EXPIRED → task routed to DEAD LETTER', tone: 'text-rose-400 font-bold' },
-]
+function traceLines(node: string) {
+  return [
+    { ts: '00:00.000', msg: `${node} accepted lease · ambulance.dispatch`, tone: 'text-neutral-400' },
+    { ts: '00:12.400', msg: `${node} HEARTBEAT LATE (12s since last ack)`, tone: 'text-amber-300' },
+    { ts: '00:20.010', msg: `${node} KERNEL PANIC → FATAL_OOM`, tone: 'text-rose-400 font-bold' },
+    { ts: '00:20.045', msg: `${node} HEARTBEAT LOST`, tone: 'text-rose-400 font-bold' },
+    { ts: '00:20.220', msg: `${node} MARKED DEAD — draining leases`, tone: 'text-rose-300' },
+    { ts: '00:30.000', msg: 'LEASE EXPIRED → task routed to DEAD LETTER', tone: 'text-rose-400 font-bold' },
+  ]
+}
 
 function buildPayload(task: Task): string {
   return JSON.stringify(
@@ -103,7 +106,7 @@ export function TaskInspector({ task, onClose }: TaskInspectorProps) {
                   System Trace
                 </h3>
                 <div className="glass-scroll mt-2 max-h-60 space-y-1.5 overflow-auto rounded-2xl border border-white/5 bg-black/40 p-4 font-mono text-[0.68rem]">
-                  {TRACE_LINES.map((line) => (
+                  {traceLines(WORKER_LABELS[task.node]).map((line) => (
                     <div key={line.ts} className="flex gap-2">
                       <span className="shrink-0 text-neutral-600">{line.ts}</span>
                       <span className={line.tone}>{line.msg}</span>

@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from 'framer-motion'
 import type { Task, TaskStatus } from '@/lib/observability/types'
+import { WORKER_LABELS } from '@/lib/observability/types'
 import { GlassPanel, PanelHeading } from './glass-panel'
 
 interface TaskStreamProps {
@@ -73,8 +74,8 @@ export function TaskStream({ tasks, onSelect, delay = 0 }: TaskStreamProps) {
                 <span className="truncate font-mono text-xs text-neutral-400">
                   {task.name}
                 </span>
-                <span className={`font-mono text-[0.7rem] ${task.node === 'W-BETA' && isDead ? 'text-rose-400' : 'text-neutral-500'}`}>
-                  {task.node}
+                <span className={`font-mono text-[0.7rem] ${isDead ? 'text-rose-400' : 'text-neutral-500'}`}>
+                  {WORKER_LABELS[task.node]}
                 </span>
                 <span className="flex justify-end">
                   <StatusPill status={task.status} />

@@ -27,9 +27,9 @@ export function EventFeed({ events, delay = 0 }: EventFeedProps) {
   return (
     <GlassPanel delay={delay} className="flex h-full flex-col p-5">
       <PanelHeading
-        label="Real-Time Log Feed [W-02_ERROR]"
+        label="Live Log Feed"
         accent="#F43F5E"
-        hint={<span className="font-mono">{events.length} lines</span>}
+        hint={<span className="font-mono">{events.length} lines · tail -f</span>}
       />
 
       <div
@@ -44,7 +44,7 @@ export function EventFeed({ events, delay = 0 }: EventFeedProps) {
             }`}
           >
             <span className="shrink-0 text-neutral-600">{event.ts}</span>
-            <span className="shrink-0 text-neutral-500">{event.source.padEnd(7)}</span>
+            <span className="shrink-0 text-neutral-500">{event.source.padEnd(9)}</span>
             <span className={levelColor(event)}>{event.message}</span>
           </div>
         ))}
